@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebGIS North Side Surabaya</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    color: #243447;
+}
+
+.navbar {
+    min-height: 58px;
+    padding: 12px 22px;
+    background: #123b5d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.navbar h2 { margin: 0; font-size: 20px; }
+
+.navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.navbar-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 7px;
+    background: #ffffff;
+    color: #123b5d;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.navbar-actions button:hover {
+    background: #e8f1f7;
+}
+
+.navbar-actions button svg {
+    width: 15px;
+    height: 15px;
+}
+
+.map-info { padding: 10px 18px; background: #f1f5f9; }
+.map-info h3 { margin: 0 0 5px; font-size: 17px; }
+.map-info p { margin: 0; font-size: 12px; color: #526273; }
+
+#map {
+    width: 100%;
+    height: calc(100vh - 116px);
+    min-height: 450px;
+    background: #e8eef2;
+}
+
+.map-sidebar {
+    position: fixed;
+    top: 130px;
+    right: 14px;
+    left: auto;
+    z-index: 20000;
+    width: 285px;
+    height: calc(100vh - 150px);
+    max-height: calc(100vh - 150px);
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #9aa9b8 #edf1f5;
+    padding: 0 3px 10px 0;
+    font-size: 13px;
+}
+
+.map-sidebar::-webkit-scrollbar { width: 7px; }
+.map-sidebar::-webkit-scrollbar-track { background: #edf1f5; border-radius: 10px; }
+.map-sidebar::-webkit-scrollbar-thumb { background: #9aa9b8; border-radius: 10px; }
+.map-sidebar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+.map-panel {
+    flex: 0 0 auto;
+    background: rgba(255,255,255,.98);
+    border: 1px solid #dce4eb;
+    border-radius: 13px;
+    box-shadow: 0 4px 18px rgba(20,45,65,.16);
+    overflow: hidden;
+}
+
+.panel-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 14px 11px;
+    border-bottom: 1px solid #e7edf2;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.panel-heading:active { cursor: grabbing; }
+
+.heading-icon, .group-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: #174c70;
+    background: #edf4f8;
+    border-radius: 9px;
+}
+
+.heading-icon { width: 34px; height: 34px; }
+.panel-heading svg { width: 19px; height: 19px; stroke-width: 1.8; }
+.panel-heading h3 { margin: 0; color: #173d59; font-size: 14px; line-height: 1.3; }
+.panel-heading p { margin: 3px 0 0; color: #71808d; font-size: 10px; line-height: 1.4; }
+.panel-content { padding: 8px 12px 11px; }
+
+.layer-group { border-bottom: 1px solid #edf1f4; padding: 3px 0 7px; }
+.layer-group:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.group-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 2px;
+    border: 0;
+    background: transparent;
+    color: #24465f;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.group-icon { width: 27px; height: 27px; border-radius: 8px; }
+.group-heading svg { width: 15px; height: 15px; stroke-width: 1.8; }
+.group-heading .chevron { margin-left: auto; color: #7b8994; transition: transform .18s ease; }
+.layer-group.collapsed .chevron { transform: rotate(-90deg); }
+.group-items { padding: 0 0 0 4px; }
+.layer-group.collapsed .group-items { display: none; }
+.group-heading.disaster .group-icon { color: #a66a12; background: #fff5e5; }
+
+.layer-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 29px;
+    margin: 2px 0;
+    padding: 4px 6px;
+    border-radius: 7px;
+    color: #3c4c59;
+    cursor: pointer;
+    line-height: 1.35;
+    transition: background .15s ease;
+}
+
+.layer-option:hover { background: #f1f6f9; }
+
+.layer-option input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    flex: 0 0 auto;
+    accent-color: #1769aa;
+    cursor: pointer;
+}
+
+.option-icon {
+    display: inline-flex;
+    width: 19px;
+    justify-content: center;
+    color: #55758b;
+    flex: 0 0 auto;
+}
+
+.option-icon svg { width: 15px; height: 15px; stroke-width: 1.7; }
+.disabled-option { color: #9aa5ad; cursor: not-allowed; }
+
+.transparency-control {
+    margin: 5px 5px 9px 29px;
+    padding: 10px;
+    background: #f4f7fa;
+    border: 1px solid #e1e8ee;
+    border-radius: 9px;
+}
+
+.transparency-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 8px;
+    color: #34566d;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+#transparency-value { color: #1769aa; font-size: 11px; font-weight: bold; white-space: nowrap; }
+#transparency-slider { display: block; width: 100%; height: 5px; margin: 7px 0; accent-color: #1769aa; cursor: pointer; }
+.transparency-scale { display: flex; justify-content: space-between; color: #7b8994; font-size: 9px; }
+.transparency-description { margin-top: 8px; color: #71808d; font-size: 9px; line-height: 1.5; }
+
+#status-layer {
+    margin: 8px 1px 0;
+    padding-top: 8px;
+    border-top: 1px solid #e8edf1;
+    color: #73818c;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.gwr-note {
+    margin: 2px 0 7px;
+    padding: 8px 9px;
+    border-radius: 8px;
+    background: #f5f8fa;
+    color: #687987;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.gwr-model-title { margin: 8px 2px 4px; color: #34566d; font-size: 11px; font-weight: 700; }
+
+.gwr-disclaimer {
+    margin: 8px 0 2px;
+    padding: 8px;
+    border-left: 3px solid #d49b43;
+    background: #fff8ec;
+    color: #775a2d;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.gwr-info {
+    margin: 8px 0;
+    border: 1px solid #e1e8ee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.gwr-info summary {
+    padding: 9px;
+    background: #f5f8fa;
+    color: #34566d;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.gwr-info-content {
+    padding: 8px 10px;
+    color: #526273;
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.gwr-info-content p { margin: 4px 0; }
+.gwr-info-content ul { margin: 5px 0; padding-left: 17px; }
+
+.gwr-color-preview {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 5px;
+    border: 1px solid #9ca3af;
+    vertical-align: -2px;
+    border-radius: 2px;
+}
+
+.label-kelurahan {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #17212b !important;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 0 !important;
+    white-space: nowrap;
+}
+
+.label-kelurahan::before { display: none !important; }
+
+.legend-tematik {
+    padding: 11px 13px;
+    width: 220px;
+    max-width: calc(100vw - 30px);
+    max-height: 42vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 9px rgba(0,0,0,.25);
+    font-size: 11px;
+    line-height: 1.9;
+    scrollbar-width: thin;
+    scrollbar-color: #9aa9b8 #edf1f5;
+}
+
+.legend-tematik::-webkit-scrollbar { width: 5px; }
+.legend-tematik::-webkit-scrollbar-thumb { background: #9aa9b8; border-radius: 10px; }
+.legend-tematik strong { font-size: 12px; }
+.legend-section + .legend-section { margin-top: 7px; padding-top: 7px; border-top: 1px solid #e1e5e9; }
+
+.swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 5px;
+    vertical-align: -2px;
+    border: 1px solid #999;
+}
+
+.info-popup { min-width: 190px; font-family: Arial, sans-serif; line-height: 1.6; }
+.info-popup h4 { margin: 0 0 7px; padding-bottom: 6px; color: #174c70; border-bottom: 1px solid #e3e8ed; font-size: 13px; }
+.info-popup p { margin: 3px 0; font-size: 11px; }
+.info-popup strong { color: #34495e; }
+
+/* SEARCH DAN PENGGARIS */
+
+.map-tool-box {
+    margin: 5px 0 10px;
+    padding: 10px;
+    background: #f5f8fa;
+    border: 1px solid #e1e8ee;
+    border-radius: 9px;
+}
+
+.map-tool-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+    color: #24465f;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.map-tool-title svg { width: 16px; height: 16px; }
+
+.search-row { display: flex; gap: 5px; }
+
+#map-search {
+    width: 100%;
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid #cbd5df;
+    border-radius: 7px;
+    outline: none;
+    font-size: 11px;
+    background: white;
+}
+
+#map-search:focus {
+    border-color: #1769aa;
+    box-shadow: 0 0 0 2px rgba(23,105,170,.1);
+}
+
+.search-button {
+    padding: 8px 11px;
+    border: none;
+    border-radius: 7px;
+    background: #1769aa;
+    color: white;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.search-button:hover { background: #123b5d; }
+
+#search-results {
+    margin-top: 7px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.search-result {
+    display: block;
+    width: 100%;
+    margin: 4px 0;
+    padding: 8px;
+    border: 1px solid #e1e8ee;
+    border-radius: 7px;
+    background: white;
+    text-align: left;
+    cursor: pointer;
+    color: #34495e;
+}
+
+.search-result:hover { background: #edf4f8; border-color: #9bb8cc; }
+.search-result strong { display: block; font-size: 11px; }
+.search-result small { display: block; margin-top: 3px; color: #71808d; font-size: 9px; }
+.search-empty { padding: 7px; color: #71808d; font-size: 10px; line-height: 1.5; }
+
+.measure-display {
+    margin: 8px 0;
+    padding: 10px;
+    border-radius: 8px;
+    background: white;
+    border: 1px solid #dce4eb;
+}
+
+.measure-label { color: #71808d; font-size: 10px; }
+#measurement-distance { margin-top: 4px; color: #1769aa; font-size: 22px; font-weight: bold; }
+#measurement-status { margin-top: 6px; color: #71808d; font-size: 10px; line-height: 1.5; }
+.measure-buttons { display: flex; gap: 6px; }
+
+.measure-buttons button {
+    flex: 1;
+    padding: 8px 5px;
+    border: none;
+    border-radius: 7px;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#measure-toggle { background: #1769aa; color: white; }
+#measure-toggle.active { background: #b45309; }
+#measure-clear { background: #e8edf2; color: #34495e; }
+
+@media (max-width: 700px) {
+    .map-sidebar {
+        top: 122px;
+        right: 7px;
+        left: auto;
+        width: min(245px, calc(100vw - 14px));
+        height: calc(100vh - 135px);
+        max-height: calc(100vh - 135px);
+        gap: 7px;
+        font-size: 12px;
+    }
+
+    .panel-heading { padding: 10px 11px 9px; }
+    .panel-content { padding: 6px 9px 9px; }
+    .panel-heading h3 { font-size: 13px; }
+    .legend-tematik { width: 175px; max-width: calc(100vw - 20px); padding: 8px; font-size: 10px; }
+}
+
+@media (max-width: 600px) {
+    .navbar { padding: 11px; }
+    .navbar h2 { font-size: 16px; }
+
+    .navbar-actions {
+        gap: 5px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .navbar-actions button {
+        padding: 7px 9px;
+        font-size: 11px;
+    }
+
+    .map-info { padding: 9px 12px; }
+    #map { height: calc(100vh - 115px); }
+}
+</style>
+</head>
+
+<body>
+
+<nav class="navbar">
+    <h2>North Side Surabaya</h2>
+
+    <div class="navbar-actions">
+        <button type="button" id="navbar-search">
+            <i data-lucide="search"></i>
+            Search
+        </button>
+
+        <button type="button" id="navbar-measure">
+            <i data-lucide="ruler"></i>
+            Penggaris
+        </button>
+
+        <button type="button" id="navbar-wilayah">
+            <i data-lucide="map"></i>
+            Informasi Wilayah
+        </button>
+
+        <button type="button" id="navbar-bencana">
+            <i data-lucide="alert-triangle"></i>
+            Bahaya Bencana
+        </button>
+
+        <button type="button" id="navbar-kesehatan">
+            <i data-lucide="hospital"></i>
+            Fasilitas Kesehatan
+        </button>
+
+        <button type="button" id="navbar-keterjangkauan">
+            <i data-lucide="route"></i>
+            Keterjangkauan
+        </button>
+
+        <button type="button" id="navbar-gwr">
+            <i data-lucide="chart-no-axes-combined"></i>
+            GWR
+        </button>
+    </div>
+</nav>
+
+<div class="map-info">
+    <h3>Peta Tematik Surabaya Utara</h3>
+    <p>
+        Aktifkan layer melalui panel di sisi kanan.
+        Arahkan kursor atau klik wilayah maupun simbol fasilitas
+        kesehatan untuk melihat informasi.
+    </p>
+</div>
+
+<div class="map-sidebar" id="map-sidebar">
+
+<section class="map-panel" id="panel-layer">
+    <div class="panel-heading">
+        <span class="heading-icon"><i data-lucide="layers-3"></i></span>
+        <div>
+            <h3>Pengaturan Peta</h3>
+            <p>Pilih informasi dan layer yang ingin ditampilkan</p>
+        </div>
+    </div>
+
+    <div class="panel-content">
+
+        <div class="map-tool-box" id="search-tool">
+            <div class="map-tool-title">
+                <i data-lucide="search"></i>
+                Pencarian Peta
+            </div>
+
+            <div class="search-row">
+                <input type="search" id="map-search"
+                    placeholder="Cari kelurahan, rumah sakit, puskesmas, atau layer...">
+                <button type="button" class="search-button" id="search-submit">Cari</button>
+            </div>
+
+            <div id="search-results">
+                <div class="search-empty">
+                    Masukkan nama wilayah, fasilitas kesehatan, atau layer yang ingin dicari.
+                </div>
+            </div>
+        </div>
+
+        <div class="map-tool-box" id="measurement-tool">
+            <div class="map-tool-title">
+                <i data-lucide="ruler"></i>
+                Penggaris / Pengukuran Jarak
+            </div>
+
+            <div class="measure-display">
+                <div class="measure-label">Total jarak pengukuran</div>
+                <div id="measurement-distance">0 m</div>
+                <div id="measurement-status">
+                    Tekan Mulai Ukur, kemudian klik beberapa titik pada peta.
+                </div>
+            </div>
+
+            <div class="measure-buttons">
+                <button type="button" id="measure-toggle">Mulai Ukur</button>
+                <button type="button" id="measure-clear">Hapus</button>
+            </div>
+
+            <div class="search-empty">
+                Pengukuran menggunakan jarak garis lurus antar titik yang dipilih pada peta, bukan jarak perjalanan melalui jalan.
+            </div>
+        </div>
+
+        <!-- INFORMASI WILAYAH -->
+
+        <div class="layer-group" id="panel-wilayah">
+            <button class="group-heading" type="button" aria-expanded="true">
+                <span class="group-icon"><i data-lucide="map-pinned"></i></span>
+                Informasi Wilayah
+                <i class="chevron" data-lucide="chevron-down"></i>
+            </button>
+
+            <div class="group-items">
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-administrasi" checked>
+                    <span class="option-icon"><i data-lucide="map"></i></span>
+                    Batas Administrasi
+                </label>
+
+                <div class="transparency-control">
+                    <div class="transparency-title">
+                        <span>Transparansi Area Administrasi</span>
+                        <span id="transparency-value">0%</span>
+                    </div>
+                    <input type="range" id="transparency-slider" min="0" max="100" value="0" step="1">
+                    <div class="transparency-scale"><span>Solid</span><span>Transparan</span></div>
+                    <div class="transparency-description">
+                        Mengatur transparansi warna isi wilayah. Garis batas kelurahan tetap terlihat.
+                    </div>
+                </div>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-kepadatan">
+                    <span class="option-icon"><i data-lucide="users"></i></span>
+                    Kepadatan Penduduk
+                </label>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-jalan">
+                    <span class="option-icon"><i data-lucide="route"></i></span>
+                    Jaringan Jalan Surabaya Utara
+                </label>
+            </div>
+        </div>
+
+        <!-- BAHAYA BENCANA -->
+
+        <div class="layer-group" id="panel-bencana">
+            <button class="group-heading disaster" type="button" aria-expanded="true">
+                <span class="group-icon"><i data-lucide="alert-triangle"></i></span>
+                Bahaya Bencana
+                <i class="chevron" data-lucide="chevron-down"></i>
+            </button>
+
+            <div class="group-items">
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-banjir">
+                    <span class="option-icon"><i data-lucide="waves"></i></span>
+                    Bahaya Banjir
+                </label>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-abrasi">
+                    <span class="option-icon"><i data-lucide="waves"></i></span>
+                    Bahaya Gelombang Ekstrem dan Abrasi
+                </label>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-cuaca">
+                    <span class="option-icon"><i data-lucide="cloud-lightning"></i></span>
+                    Bahaya Cuaca Ekstrem
+                </label>
+            </div>
+        </div>
+
+        <!-- FASILITAS KESEHATAN -->
+
+        <div class="layer-group" id="panel-kesehatan">
+            <button class="group-heading" type="button" aria-expanded="true">
+                <span class="group-icon"><i data-lucide="hospital"></i></span>
+                Fasilitas Kesehatan
+                <i class="chevron" data-lucide="chevron-down"></i>
+            </button>
+
+            <div class="group-items">
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-rs">
+                    <span class="option-icon"><i data-lucide="hospital"></i></span>
+                    Persebaran Rumah Sakit
+                </label>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-puskesmas">
+                    <span class="option-icon"><i data-lucide="stethoscope"></i></span>
+                    Persebaran Puskesmas
+                </label>
+            </div>
+        </div>
+
+        <!-- JANGKAUAN FASILITAS -->
+
+        <div class="layer-group" id="panel-keterjangkauan">
+            <button class="group-heading" type="button" aria-expanded="true">
+                <span class="group-icon"><i data-lucide="map"></i></span>
+                Jangkauan Akses Fasilitas Kesehatan
+                <i class="chevron" data-lucide="chevron-down"></i>
+            </button>
+
+            <div class="group-items">
+                <div class="gwr-model-title">Jangkauan Puskesmas</div>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-puskesmas-1km">
+                    <span class="option-icon"><i data-lucide="route"></i></span>
+                    Puskesmas 1 KM
+                </label>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-puskesmas-3km">
+                    <span class="option-icon"><i data-lucide="route"></i></span>
+                    Puskesmas 3 KM
+                </label>
+
+                <div class="gwr-model-title">Jangkauan Rumah Sakit</div>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-rs-3km">
+                    <span class="option-icon"><i data-lucide="route"></i></span>
+                    Rumah Sakit 3 KM
+                </label>
+
+                <label class="layer-option">
+                    <input type="checkbox" id="toggle-rs-5km">
+                    <span class="option-icon"><i data-lucide="route"></i></span>
+                    Rumah Sakit 5 KM
+                </label>
+
+                <div class="gwr-note">
+                    <strong>Estimasi Waktu Tempuh (Kecepatan Sedang)</strong><br><br>
+                    1 KM: Motor 2–3 menit | Mobil 3–5 menit<br>
+                    3 KM: Motor 5–7 menit | Mobil 7–10 menit<br>
+                    5 KM: Motor 8–12 menit | Mobil 10–15 menit<br><br>
+                    Waktu tempuh bersifat indikatif dan dapat berubah sesuai kondisi lalu lintas serta jaringan jalan.
+                </div>
+            </div>
+        </div>
+
+        <p id="status-layer">Memuat data peta...</p>
+    </div>
+</section>
+
+<!-- PANEL GWR -->
+
+<section class="map-panel" id="panel-gwr">
+    <div class="panel-heading">
+        <span class="heading-icon"><i data-lucide="chart-no-axes-combined"></i></span>
+        <div>
+            <h3>Hasil Analisis GWR</h3>
+            <p>Geographically Weighted Regression</p>
+        </div>
+    </div>
+
+    <div class="panel-content">
+
+        <p class="gwr-note">
+            Pilih salah satu model untuk melihat persebaran kategori Local R²
+            pada 22 kelurahan Surabaya Utara.
+        </p>
+
+        <div class="gwr-model-title">Model Rumah Sakit</div>
+
+        <label class="layer-option">
+            <input type="checkbox" id="toggle-gwr-rs">
+            <span class="option-icon"><i data-lucide="hospital"></i></span>
+            Hasil GWR Rumah Sakit
+        </label>
+
+        <div class="gwr-model-title">Model Puskesmas</div>
+
+        <label class="layer-option">
+            <input type="checkbox" id="toggle-gwr-puskesmas">
+            <span class="option-icon"><i data-lucide="stethoscope"></i></span>
+            Hasil GWR Puskesmas
+        </label>
+
+        <div class="gwr-disclaimer">
+            <strong>Catatan validasi data</strong><br>
+            Kategori pada peta merupakan kategorisasi awal berdasarkan daftar
+            wilayah yang diberikan. Nilai Local R² numerik belum ditampilkan
+            karena pencocokan nilai dengan nama kelurahan perlu diverifikasi.
+        </div>
+
+        <details class="gwr-info">
+            <summary>Pengertian dan tujuan analisis GWR</summary>
+            <div class="gwr-info-content">
+                <p>
+                    Geographically Weighted Regression (GWR) merupakan metode
+                    regresi spasial yang digunakan untuk mengetahui apakah
+                    hubungan antara variabel independen dan variabel dependen
+                    berbeda menurut lokasi geografis.
+                </p>
+                <p>
+                    Dalam penelitian ini, GWR digunakan untuk menganalisis
+                    variasi hubungan faktor wilayah dengan persebaran fasilitas
+                    kesehatan di 22 kelurahan Surabaya Utara.
+                </p>
+                <p>
+                    Hasil GWR menunjukkan hubungan statistik lokal dan bukan
+                    bukti hubungan sebab-akibat.
+                </p>
+            </div>
+        </details>
+
+        <details class="gwr-info">
+            <summary>Variabel independen (X)</summary>
+            <div class="gwr-info-content">
+                <p><strong>X1. Bahaya Banjir</strong><br>
+                Menggambarkan potensi wilayah mengalami bahaya banjir.</p>
+
+                <p><strong>X2. Bahaya Gelombang Ekstrem dan Abrasi</strong><br>
+                Menggambarkan potensi bahaya gelombang ekstrem dan pengikisan wilayah pesisir.</p>
+
+                <p><strong>X3. Bahaya Cuaca Ekstrem</strong><br>
+                Menggambarkan potensi bahaya akibat kondisi cuaca ekstrem, termasuk hujan deras.</p>
+
+                <p><strong>X4. Keterjangkauan Fasilitas Kesehatan</strong><br>
+                Menggambarkan cakupan wilayah yang terjangkau melalui jaringan jalan dan service area fasilitas kesehatan.</p>
+
+                <p><strong>X5. Kepadatan Penduduk</strong><br>
+                Menggambarkan jumlah penduduk per satuan luas wilayah.</p>
+
+                <p><strong>X6. Jumlah Penduduk</strong><br>
+                Menggambarkan total penduduk pada masing-masing kelurahan.</p>
+            </div>
+        </details>
+
+        <details class="gwr-info">
+            <summary>Variabel dependen (Y)</summary>
+            <div class="gwr-info-content">
+                <p><strong>Model 1 – Rumah Sakit</strong><br>
+                Variabel dependen berupa jumlah atau persebaran rumah sakit pada masing-masing kelurahan.</p>
+
+                <p><strong>Model 2 – Puskesmas</strong><br>
+                Variabel dependen berupa jumlah atau persebaran puskesmas pada masing-masing kelurahan.</p>
+
+                <p>Kedua fasilitas dianalisis dalam model yang terpisah.</p>
+            </div>
+        </details>
+
+        <details class="gwr-info">
+            <summary>Interpretasi kategori Local R²</summary>
+            <div class="gwr-info-content">
+                <p><span class="gwr-color-preview" style="background:#D98272"></span><strong>Poor:</strong> Local R² kurang dari 0,25.</p>
+                <p><span class="gwr-color-preview" style="background:#E7A46B"></span><strong>Moderate:</strong> 0,25 hingga kurang dari 0,50.</p>
+                <p><span class="gwr-color-preview" style="background:#E9DDBB"></span><strong>Good:</strong> 0,50 hingga 0,75.</p>
+                <p><span class="gwr-color-preview" style="background:#A8CDA4"></span><strong>Excellent:</strong> lebih dari 0,75.</p>
+                <p>
+                    Local R² menunjukkan tingkat kemampuan model menjelaskan
+                    variasi data secara lokal. Nilai ini bukan ukuran tingkat
+                    bahaya, kecukupan fasilitas, maupun aksesibilitas.
+                </p>
+            </div>
+        </details>
+
+        <details class="gwr-info">
+            <summary>Catatan interpretasi hasil</summary>
+            <div class="gwr-info-content">
+                <p>
+                    Jumlah observasi penelitian adalah 22 kelurahan dengan
+                    enam variabel independen. Karena itu, pemeriksaan
+                    multikolinearitas, termasuk hubungan antara jumlah penduduk
+                    dan kepadatan penduduk, serta kestabilan model perlu
+                    dilakukan sebelum menarik kesimpulan.
+                </p>
+            </div>
+        </details>
+
+    </div>
+</section>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+
+<script>
+
+/* ==================================================
+   1. MEMBUAT PETA
+================================================== */
+
+const map = L.map('map', { zoomControl: true })
+    .setView([-7.20, 112.73], 12);
+
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20,
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+
+/* ==================================================
+   2. PANE PETA
+================================================== */
+
+[
+    ['adminFillPane', 380],
+    ['roadPane', 390],
+    ['thematicPane', 410],
+    ['rs5Pane', 420],
+    ['rs3Pane', 430],
+    ['puskesmas3Pane', 440],
+    ['puskesmas1Pane', 450],
+    ['gwrPane', 500],
+    ['adminPane', 650],
+    ['labelPane', 660],
+    ['facilityPane', 700],
+    ['measurementPane', 800]
+].forEach(function(item) {
+    map.createPane(item[0]);
+    map.getPane(item[0]).style.zIndex = item[1];
+});
+
+map.getPane('labelPane').style.pointerEvents = 'none';
+
+
+/* ==================================================
+   3. DATA KEPADATAN PENDUDUK
+================================================== */
+
+const dataKepadatan = {
+    "Kenjeran": { penduduk: 7545, luas: 75.65, kepadatan: 100 },
+    "Sukolilo Baru": { penduduk: 10476, luas: 361.34, kepadatan: 29 },
+    "Bulak": { penduduk: 22928, luas: 125.67, kepadatan: 182 },
+    "Kedung Cowek": { penduduk: 6890, luas: 101.79, kepadatan: 68 },
+    "Tanah Kali Kedinding": { penduduk: 63002, luas: 265.14, kepadatan: 238 },
+    "Tambak Wedi": { penduduk: 21921, luas: 123.53, kepadatan: 177 },
+    "Bulak Banteng": { penduduk: 38359, luas: 287.46, kepadatan: 133 },
+    "Sidotopo Wetan": { penduduk: 62907, luas: 181.57, kepadatan: 346 },
+    "Dupak": { penduduk: 22311, luas: 65.25, kepadatan: 342 },
+    "Kemayoran": { penduduk: 17499, luas: 53.47, kepadatan: 327 },
+    "Krembangan Selatan": { penduduk: 14072, luas: 118.30, kepadatan: 119 },
+    "Morokrembangan": { penduduk: 46988, luas: 362.61, kepadatan: 130 },
+    "Perak Barat": { penduduk: 13010, luas: 280.38, kepadatan: 46 },
+    "Bongkaran": { penduduk: 10228, luas: 78.52, kepadatan: 130 },
+    "Krembangan Utara": { penduduk: 16743, luas: 49.97, kepadatan: 335 },
+    "Nyamplungan": { penduduk: 8417, luas: 52.87, kepadatan: 159 },
+    "Tanjung Perak": { penduduk: 38543, luas: 375.18, kepadatan: 103 },
+    "Pegirian": { penduduk: 31417, luas: 74.06, kepadatan: 424 },
+    "Wonokusumo": { penduduk: 68777, luas: 140.37, kepadatan: 490 },
+    "Ujung": { penduduk: 33396, luas: 580.73, kepadatan: 58 },
+    "Ampel": { penduduk: 18345, luas: 40.23, kepadatan: 456 },
+    "Sidotopo": { penduduk: 31360, luas: 72.12, kepadatan: 435 }
+};
+
+
+/* ==================================================
+   4. DATA KATEGORI GWR AWAL
+================================================== */
+
+const kategoriGWR = {
+    rumahSakit: {
+        nama: 'GWR Rumah Sakit',
+        kategori: {
+            "Sukolilo Baru": "Moderate",
+            "Bulak": "Moderate",
+            "Kenjeran": "Moderate",
+            "Kedung Cowek": "Moderate",
+            "Tanah Kali Kedinding": "Moderate",
+            "Sidotopo Wetan": "Moderate",
+            "Pegirian": "Moderate",
+            "Sidotopo": "Moderate"
+        }
+    },
+    puskesmas: {
+        nama: 'GWR Puskesmas',
+        kategori: {
+            "Sukolilo Baru": "Excellent",
+            "Tambak Wedi": "Excellent",
+            "Pegirian": "Excellent",
+            "Wonokusumo": "Excellent",
+            "Ujung": "Excellent"
+        }
+    }
+};
+
+const warnaGWR = {
+    Poor: '#D98272',
+    Moderate: '#E7A46B',
+    Good: '#E9DDBB',
+    Excellent: '#A8CDA4',
+    Unknown: '#D1D5DB'
+};
+
+function kategoriWilayahGWR(nama, model) {
+    return kategoriGWR[model].kategori[nama] || 'Good';
+}
+
+
+/* ==================================================
+   5. VARIABEL LAYER
+================================================== */
+
+let layerAdministrasi = null;
+let layerAdministrasiFill = null;
+let layerAdministrasiGaris = null;
+
+let layerKepadatan = null;
+let layerJalan = null;
+
+let layerBanjir = null;
+let layerAbrasi = null;
+let layerCuaca = null;
+
+let layerRS = null;
+let layerPuskesmas = null;
+
+let layerPuskesmas1km = null;
+let layerPuskesmas3km = null;
+let layerRS3km = null;
+let layerRS5km = null;
+
+let layerGWRRS = null;
+let layerGWRPuskesmas = null;
+let geojsonAdministrasi = null;
+
+let jumlahDataBerhasil = 0;
+let jumlahDataGagal = 0;
+
+
+/* ==================================================
+   6. FUNGSI BANTUAN
+================================================== */
+
+function escapeHTML(value) {
+    return String(value ?? '-').replace(/[&<>"']/g, function(char) {
+        const entities = {
+            '&': '&amp;', '<': '&lt;', '>': '&gt;',
+            '"': '&quot;', "'": '&#39;'
+        };
+        return entities[char];
+    });
+}
+
+function ambilProperti(properties, daftarNama) {
+    if (!properties) return '-';
+
+    for (const nama of daftarNama) {
+        if (
+            properties[nama] !== undefined &&
+            properties[nama] !== null &&
+            properties[nama] !== ''
+        ) return properties[nama];
+    }
+
+    return '-';
+}
+
+function namaKelurahan(properties) {
+    return ambilProperti(properties, [
+        'KELURAHAN', 'kelurahan', 'Kelurahan',
+        'DESA', 'desa', 'NAMOBJ', 'NAMKel', 'WADMKD'
+    ]);
+}
+
+function namaKecamatan(properties) {
+    return ambilProperti(properties, [
+        'KECAMATAN', 'kecamatan', 'Kecamatan', 'WADMKC', 'NAMKEC'
+    ]);
+}
+
+function formatAngka(nilai) {
+    if (nilai === '-' || nilai === null || nilai === undefined) return '-';
+    return Number(nilai).toLocaleString('id-ID');
+}
+
+function buatPopup(judul, isi) {
+    return `<div class="info-popup"><h4>${escapeHTML(judul)}</h4>${isi}</div>`;
+}
+
+
+/* ==================================================
+   7. TRANSPARANSI ADMINISTRASI
+================================================== */
+
+const transparencySlider = document.getElementById('transparency-slider');
+const transparencyValue = document.getElementById('transparency-value');
+
+function perbaruiTransparansiAdministrasi() {
+    const nilai = Number(transparencySlider.value);
+    const opasitas = 1 - (nilai / 100);
+
+    transparencyValue.textContent = nilai + '%';
+
+    if (layerAdministrasiFill) {
+        layerAdministrasiFill.setStyle({ fillOpacity: opasitas });
+    }
+}
+
+transparencySlider.addEventListener('input', perbaruiTransparansiAdministrasi);
+
+
+/* ==================================================
+   8. WARNA BAHAYA
+================================================== */
+
+function warnaKelas(kelas) {
+    const nilai = String(kelas || '').toLowerCase();
+
+    if (nilai.includes('rendah')) return '#218838';
+    if (nilai.includes('sedang')) return '#f0c419';
+    if (nilai.includes('tinggi')) return '#dc3545';
+
+    return '#9ca3af';
+}
+
+function styleBahaya(feature) {
+    const kelas = feature.properties?.kelas ??
+                  feature.properties?.KELAS ??
+                  feature.properties?.Kelas;
+
+    return {
+        pane: 'thematicPane',
+        color: '#555555',
+        weight: 0.6,
+        opacity: 0.7,
+        fillColor: warnaKelas(kelas),
+        fillOpacity: 0.48
+    };
+}
+
+function popupBahaya(feature, jenisBahaya) {
+    const p = feature.properties || {};
+    const kelurahan = namaKelurahan(p);
+    const kecamatan = namaKecamatan(p);
+    const kelas = ambilProperti(p, ['kelas', 'KELAS', 'Kelas']);
+
+    let isi = `
+        <p><strong>Jenis bahaya:</strong> ${escapeHTML(jenisBahaya)}</p>
+        <p><strong>Kelas bahaya:</strong> ${escapeHTML(kelas)}</p>
+        <p><strong>Kelurahan:</strong> ${escapeHTML(kelurahan)}</p>
+    `;
+
+    if (kecamatan !== '-') {
+        isi += `<p><strong>Kecamatan:</strong> ${escapeHTML(kecamatan)}</p>`;
+    }
+
+    return buatPopup(jenisBahaya, isi);
+}
+
+async function muatLayerBahaya(url, jenisBahaya) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const geojson = await response.json();
+
+        const layer = L.geoJSON(geojson, {
+            pane: 'thematicPane',
+            style: styleBahaya,
+            onEachFeature: function(feature, leafletLayer) {
+                leafletLayer.bindPopup(() => popupBahaya(feature, jenisBahaya));
+            }
+        });
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+        return layer;
+
+    } catch (error) {
+        console.error('Gagal memuat ' + jenisBahaya, error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+        return null;
+    }
+}
+
+
+/* ==================================================
+   9. POPUP ADMINISTRASI
+================================================== */
+
+function popupAdministrasi(feature) {
+    const p = feature.properties || {};
+    const kelurahan = namaKelurahan(p);
+    const kecamatan = namaKecamatan(p);
+
+    const luas = ambilProperti(p, [
+        'luas', 'Luas', 'LUAS', 'luas_ha', 'Luas_Ha', 'Shape_Area'
+    ]);
+
+    return buatPopup('Informasi Administrasi', `
+        <p><strong>Kecamatan:</strong> ${escapeHTML(kecamatan)}</p>
+        <p><strong>Kelurahan:</strong> ${escapeHTML(kelurahan)}</p>
+        <p><strong>Luas wilayah:</strong> ${escapeHTML(luas)}</p>
+    `);
+}
+
+
+/* ==================================================
+   10. LAYER ADMINISTRASI
+================================================== */
+
+async function muatAdministrasi() {
+    try {
+        const response = await fetch('batas_sby_utara.geojson');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const geojson = await response.json();
+        geojsonAdministrasi = geojson;
+
+        layerAdministrasiFill = L.geoJSON(geojson, {
+            pane: 'adminFillPane',
+            style: function() {
+                return {
+                    pane: 'adminFillPane',
+                    stroke: false,
+                    fill: true,
+                    fillColor: '#ffffff',
+                    fillOpacity: 1
+                };
+            }
+        });
+
+        layerAdministrasiGaris = L.geoJSON(geojson, {
+            pane: 'adminPane',
+            style: function() {
+                return {
+                    pane: 'adminPane',
+                    color: '#17212b',
+                    weight: 1.5,
+                    opacity: 1,
+                    fill: false,
+                    fillOpacity: 0
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                const nama = namaKelurahan(feature.properties);
+
+                if (nama !== '-') {
+                    layer.bindTooltip(escapeHTML(nama), {
+                        permanent: true,
+                        direction: 'center',
+                        className: 'label-kelurahan',
+                        pane: 'labelPane'
+                    });
+                }
+
+                layer.bindPopup(popupAdministrasi(feature));
+            }
+        });
+
+        layerAdministrasi = L.layerGroup([
+            layerAdministrasiFill,
+            layerAdministrasiGaris
+        ]);
+
+        perbaruiTransparansiAdministrasi();
+        layerAdministrasi.addTo(map);
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+
+    } catch (error) {
+        console.error('Gagal memuat batas administrasi:', error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+    }
+}
+
+
+/* ==================================================
+   11. LAYER KEPADATAN
+================================================== */
+
+function warnaKepadatan(nilai) {
+    if (nilai < 100) return '#ffffcc';
+    if (nilai < 200) return '#c2e699';
+    if (nilai < 300) return '#78c679';
+    if (nilai < 400) return '#31a354';
+    return '#006837';
+}
+
+function buatLayerKepadatan(geojson) {
+    return L.geoJSON(geojson, {
+        pane: 'thematicPane',
+        style: function(feature) {
+            const nama = namaKelurahan(feature.properties);
+            const data = dataKepadatan[nama];
+            const nilai = data ? data.kepadatan : 0;
+
+            return {
+                color: '#ffffff',
+                weight: 0.7,
+                fillColor: warnaKepadatan(nilai),
+                fillOpacity: 0.65
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            const nama = namaKelurahan(feature.properties);
+            const kecamatan = namaKecamatan(feature.properties);
+            const data = dataKepadatan[nama];
+
+            let isi = `
+                <p><strong>Kecamatan:</strong> ${escapeHTML(kecamatan)}</p>
+                <p><strong>Kelurahan:</strong> ${escapeHTML(nama)}</p>
+            `;
+
+            if (data) {
+                isi += `
+                    <p><strong>Jumlah penduduk:</strong> ${formatAngka(data.penduduk)} jiwa</p>
+                    <p><strong>Luas wilayah:</strong> ${formatAngka(data.luas)} ha</p>
+                    <p><strong>Kepadatan:</strong> ${formatAngka(data.kepadatan)} jiwa/ha</p>
+                `;
+            } else {
+                isi += `<p>Data kepadatan untuk wilayah ini belum tersedia.</p>`;
+            }
+
+            layer.bindPopup(buatPopup('Informasi Kepadatan Penduduk', isi));
+        }
+    });
+}
+
+async function muatKepadatan() {
+    try {
+        const response = await fetch('batas_sby_utara.geojson');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const geojson = await response.json();
+        layerKepadatan = buatLayerKepadatan(geojson);
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+
+    } catch (error) {
+        console.error('Gagal memuat kepadatan:', error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+    }
+}
+
+
+/* ==================================================
+   12. JARINGAN JALAN
+================================================== */
+
+async function muatJaringanJalan() {
+    try {
+        const response = await fetch('jalan_sby_utara.geojson');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const geojson = await response.json();
+
+        layerJalan = L.geoJSON(geojson, {
+            pane: 'roadPane',
+            style: function() {
+                return { color: '#64748b', weight: 1.1, opacity: 0.78 };
+            },
+            onEachFeature: function(feature, layer) {
+                const nama = ambilProperti(feature.properties, [
+                    'Nama', 'nama', 'NAMOBJ', 'name', 'NAMA'
+                ]);
+
+                layer.bindPopup(buatPopup('Informasi Jaringan Jalan', `
+                    <p><strong>Nama jalan:</strong> ${escapeHTML(nama)}</p>
+                `));
+            }
+        });
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+
+    } catch (error) {
+        console.error('Gagal memuat jaringan jalan:', error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+    }
+}
+
+
+/* ==================================================
+   13. SIMBOL FASILITAS KESEHATAN
+================================================== */
+
+function ikonFasilitas(jenis) {
+    const warna = jenis === 'Rumah Sakit' ? '#c0392b' : '#1675a9';
+    const simbol = jenis === 'Rumah Sakit' ? 'H' : 'P';
+
+    return L.divIcon({
+        className: '',
+        html: `
+            <div style="
+                width:28px;height:28px;border-radius:50%;
+                background:${warna};border:2px solid white;
+                box-shadow:0 2px 6px rgba(0,0,0,.4);
+                color:white;display:flex;align-items:center;
+                justify-content:center;font-weight:bold;font-size:12px;">
+                ${simbol}
+            </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+    });
+}
+
+function popupFasilitas(feature, jenis) {
+    const p = feature.properties || {};
+    const nama = ambilProperti(p, ['Nama', 'nama', 'NAMA']);
+
+    let isi = `
+        <p><strong>Nama fasilitas:</strong> ${escapeHTML(nama)}</p>
+        <p><strong>Jenis fasilitas:</strong> ${escapeHTML(jenis)}</p>
+    `;
+
+    const kecamatan = namaKecamatan(p);
+    const kelurahan = namaKelurahan(p);
+
+    if (kecamatan !== '-') isi += `<p><strong>Kecamatan:</strong> ${escapeHTML(kecamatan)}</p>`;
+    if (kelurahan !== '-') isi += `<p><strong>Kelurahan:</strong> ${escapeHTML(kelurahan)}</p>`;
+
+    return buatPopup('Informasi Fasilitas Kesehatan', isi);
+}
+
+async function muatRumahSakit() {
+    try {
+        const response = await fetch('persebaran_rs.geojson');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const dataRS = await response.json();
+
+        layerRS = L.geoJSON(dataRS, {
+            pane: 'facilityPane',
+            pointToLayer: function(feature, latlng) {
+                return L.marker(latlng, {
+                    icon: ikonFasilitas('Rumah Sakit'),
+                    pane: 'facilityPane'
+                });
+            },
+            onEachFeature: function(feature, layer) {
+                layer.bindPopup(popupFasilitas(feature, 'Rumah Sakit'));
+            }
+        });
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+
+    } catch (error) {
+        console.error('Gagal memuat rumah sakit:', error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+    }
+}
+
+async function muatPuskesmas() {
+    try {
+        const response = await fetch('persebaran_puskesmas.geojson');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const dataPuskesmas = await response.json();
+
+        layerPuskesmas = L.geoJSON(dataPuskesmas, {
+            pane: 'facilityPane',
+            pointToLayer: function(feature, latlng) {
+                return L.marker(latlng, {
+                    icon: ikonFasilitas('Puskesmas'),
+                    pane: 'facilityPane'
+                });
+            },
+            onEachFeature: function(feature, layer) {
+                layer.bindPopup(popupFasilitas(feature, 'Puskesmas'));
+            }
+        });
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+
+    } catch (error) {
+        console.error('Gagal memuat puskesmas:', error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+    }
+}
+
+
+/* ==================================================
+   14. SERVICE AREA
+================================================== */
+
+async function muatServiceArea(url, pane, warna, judul, jarak) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+
+        const geojson = await response.json();
+
+        const layer = L.geoJSON(geojson, {
+            pane: pane,
+            style: function() {
+                return {
+                    pane: pane,
+                    color: warna,
+                    weight: 1.1,
+                    opacity: 0.9,
+                    fillColor: warna,
+                    fillOpacity: 0.25
+                };
+            },
+            onEachFeature: function(feature, leafletLayer) {
+                const nama = ambilProperti(feature.properties, [
+                    'Nama', 'nama', 'NAMA', 'nama_fasilitas', 'Nama_Fasilitas'
+                ]);
+
+                leafletLayer.bindPopup(buatPopup(judul, `
+                    <p><strong>Jarak jangkauan:</strong> ${jarak}</p>
+                    <p><strong>Fasilitas:</strong> ${escapeHTML(nama)}</p>
+                    <p><strong>Metode analisis:</strong> Berdasarkan jaringan jalan</p>
+                `));
+            }
+        });
+
+        jumlahDataBerhasil++;
+        perbaruiStatus();
+        return layer;
+
+    } catch (error) {
+        console.error('Gagal memuat ' + judul + ':', error);
+        jumlahDataGagal++;
+        perbaruiStatus();
+        return null;
+    }
+}
+
+
+/* ==================================================
+   15. MEMBUAT LAYER GWR
+================================================== */
+
+function popupGWR(feature, model) {
+    const p = feature.properties || {};
+    const nama = namaKelurahan(p);
+    const kecamatan = namaKecamatan(p);
+    const kategori = kategoriWilayahGWR(nama, model);
+
+    const penjelasan = {
+        Poor: 'Kemampuan model menjelaskan variasi data lokal tergolong rendah.',
+        Moderate: 'Kemampuan model menjelaskan variasi data lokal tergolong sedang.',
+        Good: 'Kemampuan model menjelaskan variasi data lokal tergolong baik.',
+        Excellent: 'Kemampuan model menjelaskan variasi data lokal tergolong sangat baik.'
+    };
+
+    return buatPopup(kategoriGWR[model].nama, `
+        <p><strong>Kelurahan:</strong> ${escapeHTML(nama)}</p>
+        <p><strong>Kecamatan:</strong> ${escapeHTML(kecamatan)}</p>
+        <p><strong>Kategori Local R²:</strong>
+        <span style="font-weight:bold;color:${warnaGWR[kategori]}">
+            ${escapeHTML(kategori)}
+        </span></p>
+        <p><strong>Interpretasi:</strong> ${escapeHTML(penjelasan[kategori])}</p>
+        <p style="margin-top:7px;color:#8a6b36;font-size:10px;">
+            Kategori awal; nilai numerik Local R² belum ditampilkan
+            sebelum pencocokan data terverifikasi.
+        </p>
+    `);
+}
+
+function buatLayerGWR(geojson, model) {
+    return L.geoJSON(geojson, {
+        pane: 'gwrPane',
+
+        style: function(feature) {
+            const nama = namaKelurahan(feature.properties);
+            const kategori = kategoriWilayahGWR(nama, model);
+
+            return {
+                pane: 'gwrPane',
+                color: '#45515c',
+                weight: 1.1,
+                opacity: 0.9,
+                fillColor: warnaGWR[kategori],
+                fillOpacity: 0.78
+            };
+        },
+
+        onEachFeature: function(feature, layer) {
+            const nama = namaKelurahan(feature.properties);
+            const kategori = kategoriWilayahGWR(nama, model);
+
+            layer.bindPopup(function() {
+                return popupGWR(feature, model);
+            });
+
+            layer.on('mouseover', function() {
+                layer.setStyle({
+                    weight: 3,
+                    color: '#17212b',
+                    fillOpacity: 0.95
+                });
+
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    layer.bringToFront();
+                }
+            });
+
+            layer.on('mouseout', function() {
+                layer.setStyle({
+                    weight: 1.1,
+                    color: '#45515c',
+                    fillOpacity: 0.78
+                });
+            });
+
+            layer.bindTooltip(
+                `<strong>${escapeHTML(nama)}</strong><br>Kategori: ${escapeHTML(kategori)}`,
+                { sticky: true }
+            );
+        }
+    });
+}
+
+function siapkanLayerGWR() {
+    if (!geojsonAdministrasi) return;
+
+    layerGWRRS = buatLayerGWR(geojsonAdministrasi, 'rumahSakit');
+    layerGWRPuskesmas = buatLayerGWR(geojsonAdministrasi, 'puskesmas');
+}
+
+
+/* ==================================================
+   16. LEGENDA DINAMIS
+================================================== */
+
+const legendControl = L.control({ position: 'bottomleft' });
+
+legendControl.onAdd = function() {
+    this.container = L.DomUtil.create('div', 'legend-tematik');
+    this.container.style.display = 'none';
+
+    L.DomEvent.disableClickPropagation(this.container);
+    L.DomEvent.disableScrollPropagation(this.container);
+
+    return this.container;
+};
+
+legendControl.addTo(map);
+
+function bagianLegenda(judul, isi) {
+    return `<div class="legend-section"><strong>${judul}</strong><br>${isi}</div>`;
+}
+
+function simbolLegenda(warna, label) {
+    return `<span class="swatch" style="background:${warna}"></span>${label}<br>`;
+}
+
+function legendaGWR(model) {
+    let isi = '';
+    isi += simbolLegenda(warnaGWR.Poor, 'Poor (Local R² < 0,25)');
+    isi += simbolLegenda(warnaGWR.Moderate, 'Moderate (0,25–<0,50)');
+    isi += simbolLegenda(warnaGWR.Good, 'Good (0,50–0,75)');
+    isi += simbolLegenda(warnaGWR.Excellent, 'Excellent (>0,75)');
+
+    return bagianLegenda(
+        model === 'rumahSakit' ? 'GWR Rumah Sakit – Local R²' : 'GWR Puskesmas – Local R²',
+        isi
+    );
+}
+
+function perbaruiLegenda() {
+    let aktif = [];
+
+    const gwrRS = document.getElementById('toggle-gwr-rs').checked;
+    const gwrPuskesmas = document.getElementById('toggle-gwr-puskesmas').checked;
+
+    if (gwrRS) aktif.push(legendaGWR('rumahSakit'));
+    if (gwrPuskesmas) aktif.push(legendaGWR('puskesmas'));
+
+    if (document.getElementById('toggle-kepadatan').checked) {
+        let isi = '';
+        isi += simbolLegenda('#ffffcc', 'Sangat rendah');
+        isi += simbolLegenda('#c2e699', 'Rendah');
+        isi += simbolLegenda('#78c679', 'Sedang');
+        isi += simbolLegenda('#31a354', 'Tinggi');
+        isi += simbolLegenda('#006837', 'Sangat tinggi');
+        aktif.push(bagianLegenda('Kepadatan Penduduk', isi));
+    }
+
+    [
+        ['toggle-banjir', 'Bahaya Banjir'],
+        ['toggle-abrasi', 'Bahaya Gelombang Ekstrem dan Abrasi'],
+        ['toggle-cuaca', 'Bahaya Cuaca Ekstrem']
+    ].forEach(function(item) {
+        if (document.getElementById(item[0]).checked) {
+            let isi = '';
+            isi += simbolLegenda('#218838', 'Rendah');
+            isi += simbolLegenda('#f0c419', 'Sedang');
+            isi += simbolLegenda('#dc3545', 'Tinggi');
+            aktif.push(bagianLegenda(item[1], isi));
+        }
+    });
+
+    if (document.getElementById('toggle-jalan').checked) {
+        aktif.push(bagianLegenda(
+            'Jaringan Jalan',
+            simbolLegenda('#64748b', 'Jaringan jalan')
+        ));
+    }
+
+    if (document.getElementById('toggle-puskesmas-1km').checked) {
+        aktif.push(bagianLegenda(
+            'Jangkauan Puskesmas',
+            simbolLegenda('#176B45', 'Puskesmas 1 KM')
+        ));
+    }
+
+    if (document.getElementById('toggle-puskesmas-3km').checked) {
+        aktif.push(bagianLegenda(
+            'Jangkauan Puskesmas',
+            simbolLegenda('#91C9A5', 'Puskesmas 3 KM')
+        ));
+    }
+
+    if (document.getElementById('toggle-rs-3km').checked) {
+        aktif.push(bagianLegenda(
+            'Jangkauan Rumah Sakit',
+            simbolLegenda('#185A9D', 'Rumah Sakit 3 KM')
+        ));
+    }
+
+    if (document.getElementById('toggle-rs-5km').checked) {
+        aktif.push(bagianLegenda(
+            'Jangkauan Rumah Sakit',
+            simbolLegenda('#91BCE5', 'Rumah Sakit 5 KM')
+        ));
+    }
+
+    let fasilitas = '';
+
+    if (document.getElementById('toggle-rs').checked) {
+        fasilitas += '<span style="color:#c0392b;font-weight:bold;">●</span> Rumah Sakit<br>';
+    }
+
+    if (document.getElementById('toggle-puskesmas').checked) {
+        fasilitas += '<span style="color:#1675a9;font-weight:bold;">●</span> Puskesmas<br>';
+    }
+
+    if (fasilitas) aktif.push(bagianLegenda('Fasilitas Kesehatan', fasilitas));
+
+    if (aktif.length) {
+        legendControl.getContainer().innerHTML = '<strong>LEGENDA PETA</strong>' + aktif.join('');
+        legendControl.getContainer().style.display = 'block';
+    } else {
+        legendControl.getContainer().style.display = 'none';
+    }
+}
+
+
+/* ==================================================
+   17. STATUS DATA
+================================================== */
+
+function perbaruiStatus() {
+    document.getElementById('status-layer').innerHTML =
+        'Data berhasil dimuat: ' + jumlahDataBerhasil +
+        '<br>Data gagal dimuat: ' + jumlahDataGagal;
+}
+
+
+/* ==================================================
+   18. MENGAKTIFKAN LAYER BIASA
+================================================== */
+
+function aturLayer(checkboxId, layer) {
+    const checkbox = document.getElementById(checkboxId);
+
+    checkbox.addEventListener('change', function() {
+        if (!layer) {
+            checkbox.checked = false;
+            perbaruiLegenda();
+            alert('Layer belum berhasil dimuat. Periksa file GeoJSON dan nama file.');
+            return;
+        }
+
+        if (checkbox.checked) {
+            if (!map.hasLayer(layer)) layer.addTo(map);
+        } else {
+            if (map.hasLayer(layer)) map.removeLayer(layer);
+        }
+
+        perbaruiLegenda();
+    });
+
+    if (checkbox.checked && layer && !map.hasLayer(layer)) {
+        layer.addTo(map);
+    }
+
+    if (!layer) checkbox.checked = false;
+}
+
+
+/* ==================================================
+   19. EVENT CHECKBOX GWR
+================================================== */
+
+function pasangEventGWR() {
+    const cbRS = document.getElementById('toggle-gwr-rs');
+    const cbPuskesmas = document.getElementById('toggle-gwr-puskesmas');
+
+    cbRS.addEventListener('change', function() {
+        if (cbRS.checked) {
+            cbPuskesmas.checked = false;
+
+            if (layerGWRPuskesmas && map.hasLayer(layerGWRPuskesmas)) {
+                map.removeLayer(layerGWRPuskesmas);
+            }
+
+            if (layerGWRRS) {
+                layerGWRRS.addTo(map);
+            } else {
+                cbRS.checked = false;
+                alert('Layer GWR Rumah Sakit belum tersedia.');
+            }
+        } else if (layerGWRRS && map.hasLayer(layerGWRRS)) {
+            map.removeLayer(layerGWRRS);
+        }
+
+        perbaruiLegenda();
+    });
+
+    cbPuskesmas.addEventListener('change', function() {
+        if (cbPuskesmas.checked) {
+            cbRS.checked = false;
+
+            if (layerGWRRS && map.hasLayer(layerGWRRS)) {
+                map.removeLayer(layerGWRRS);
+            }
+
+            if (layerGWRPuskesmas) {
+                layerGWRPuskesmas.addTo(map);
+            } else {
+                cbPuskesmas.checked = false;
+                alert('Layer GWR Puskesmas belum tersedia.');
+            }
+        } else if (layerGWRPuskesmas && map.hasLayer(layerGWRPuskesmas)) {
+            map.removeLayer(layerGWRPuskesmas);
+        }
+
+        perbaruiLegenda();
+    });
+}
+
+
+/* ==================================================
+   20. EVENT CHECKBOX LAYER
+================================================== */
+
+function pasangEventCheckbox() {
+    aturLayer('toggle-administrasi', layerAdministrasi);
+    aturLayer('toggle-kepadatan', layerKepadatan);
+    aturLayer('toggle-jalan', layerJalan);
+    aturLayer('toggle-banjir', layerBanjir);
+    aturLayer('toggle-abrasi', layerAbrasi);
+    aturLayer('toggle-cuaca', layerCuaca);
+    aturLayer('toggle-rs', layerRS);
+    aturLayer('toggle-puskesmas', layerPuskesmas);
+    aturLayer('toggle-puskesmas-1km', layerPuskesmas1km);
+    aturLayer('toggle-puskesmas-3km', layerPuskesmas3km);
+    aturLayer('toggle-rs-3km', layerRS3km);
+    aturLayer('toggle-rs-5km', layerRS5km);
+
+    pasangEventGWR();
+}
+
+
+/* ==================================================
+   21. FITUR SEARCH
+================================================== */
+
+const dataPencarian = [];
+
+function normalisasiTeks(teks) {
+    return String(teks || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function tambahDataPencarian(nama, jenis, layer, checkboxId) {
+    if (!nama || nama === '-') return;
+
+    dataPencarian.push({
+        nama: String(nama),
+        jenis: jenis,
+        layer: layer || null,
+        checkboxId: checkboxId || null
+    });
+}
+
+function bangunIndeksPencarian() {
+    dataPencarian.length = 0;
+
+    const daftarLayer = [
+        ['Batas Administrasi', 'Layer Peta', 'toggle-administrasi'],
+        ['Kepadatan Penduduk', 'Layer Peta', 'toggle-kepadatan'],
+        ['Jaringan Jalan Surabaya Utara', 'Layer Peta', 'toggle-jalan'],
+        ['Bahaya Banjir', 'Layer Bencana', 'toggle-banjir'],
+        ['Bahaya Gelombang Ekstrem dan Abrasi', 'Layer Bencana', 'toggle-abrasi'],
+        ['Bahaya Cuaca Ekstrem', 'Layer Bencana', 'toggle-cuaca'],
+        ['Persebaran Rumah Sakit', 'Fasilitas Kesehatan', 'toggle-rs'],
+        ['Persebaran Puskesmas', 'Fasilitas Kesehatan', 'toggle-puskesmas'],
+        ['Puskesmas 1 KM', 'Jangkauan Fasilitas', 'toggle-puskesmas-1km'],
+        ['Puskesmas 3 KM', 'Jangkauan Fasilitas', 'toggle-puskesmas-3km'],
+        ['Rumah Sakit 3 KM', 'Jangkauan Fasilitas', 'toggle-rs-3km'],
+        ['Rumah Sakit 5 KM', 'Jangkauan Fasilitas', 'toggle-rs-5km'],
+        ['GWR Rumah Sakit', 'Hasil Analisis GWR', 'toggle-gwr-rs'],
+        ['GWR Puskesmas', 'Hasil Analisis GWR', 'toggle-gwr-puskesmas']
+    ];
+
+    daftarLayer.forEach(function(item) {
+        tambahDataPencarian(item[0], item[1], null, item[2]);
+    });
+
+    if (layerAdministrasiGaris) {
+        layerAdministrasiGaris.eachLayer(function(layer) {
+            const feature = layer.feature;
+            if (!feature) return;
+
+            const nama = namaKelurahan(feature.properties);
+            const kecamatan = namaKecamatan(feature.properties);
+
+            tambahDataPencarian(
+                nama,
+                'Kelurahan' + (kecamatan !== '-' ? ' - ' + kecamatan : ''),
+                layer,
+                null
+            );
+        });
+    }
+
+    function tambahFasilitas(layerFasilitas, jenis, checkboxId) {
+        if (!layerFasilitas) return;
+
+        layerFasilitas.eachLayer(function(layer) {
+            const properties = layer.feature?.properties || {};
+
+            const nama = ambilProperti(properties, [
+                'Nama', 'nama', 'NAMA', 'name', 'NAMOBJ',
+                'Nama_RS', 'nama_rs',
+                'Nama_Puskesmas', 'nama_puskesmas'
+            ]);
+
+            tambahDataPencarian(nama, jenis, layer, checkboxId);
+        });
+    }
+
+    tambahFasilitas(layerRS, 'Rumah Sakit', 'toggle-rs');
+    tambahFasilitas(layerPuskesmas, 'Puskesmas', 'toggle-puskesmas');
+}
+
+function pilihHasilPencarian(item) {
+    if (!item) return;
+
+    if (item.checkboxId) {
+        const checkbox = document.getElementById(item.checkboxId);
+
+        if (checkbox && !checkbox.checked) {
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    }
+
+    if (item.layer) {
+        if (item.layer.getBounds) {
+            const bounds = item.layer.getBounds();
+
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, {
+                    padding: [40, 40],
+                    maxZoom: 16
+                });
+            }
+        } else if (item.layer.getLatLng) {
+            map.setView(item.layer.getLatLng(), 17);
+        }
+
+        if (item.layer.openPopup) {
+            setTimeout(function() {
+                item.layer.openPopup();
+            }, 350);
+        }
+    }
+}
+
+function tampilkanHasilPencarian() {
+    const input = document.getElementById('map-search');
+    const hasil = document.getElementById('search-results');
+    const kataKunci = normalisasiTeks(input.value);
+
+    if (!kataKunci) {
+        hasil.innerHTML = '<div class="search-empty">Silakan masukkan kata kunci pencarian.</div>';
+        return;
+    }
+
+    const ditemukan = dataPencarian.filter(function(item) {
+        return normalisasiTeks(item.nama).includes(kataKunci) ||
+               normalisasiTeks(item.jenis).includes(kataKunci);
+    }).slice(0, 20);
+
+    if (ditemukan.length === 0) {
+        hasil.innerHTML = '<div class="search-empty">Data tidak ditemukan. Periksa kembali kata kunci.</div>';
+        return;
+    }
+
+    hasil.innerHTML = '';
+
+    ditemukan.forEach(function(item) {
+        const tombol = document.createElement('button');
+        tombol.type = 'button';
+        tombol.className = 'search-result';
+
+        const nama = document.createElement('strong');
+        nama.textContent = item.nama;
+
+        const jenis = document.createElement('small');
+        jenis.textContent = item.jenis;
+
+        tombol.appendChild(nama);
+        tombol.appendChild(jenis);
+
+        tombol.addEventListener('click', function() {
+            pilihHasilPencarian(item);
+        });
+
+        hasil.appendChild(tombol);
+    });
+}
+
+document.getElementById('search-submit')
+    .addEventListener('click', tampilkanHasilPencarian);
+
+document.getElementById('map-search')
+    .addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            tampilkanHasilPencarian();
+        }
+    });
+
+
+/* ==================================================
+   22. FITUR PENGGARIS / PENGUKURAN JARAK
+================================================== */
+
+let pengukuranAktif = false;
+let titikPengukuran = [];
+let garisPengukuran = null;
+
+const markerPengukuran = L.layerGroup().addTo(map);
+
+function formatJarak(jarak) {
+    if (jarak >= 1000) {
+        return (jarak / 1000).toFixed(2) + ' km';
+    }
+
+    return Math.round(jarak) + ' m';
+}
+
+function hitungTotalJarak() {
+    let total = 0;
+
+    for (let i = 1; i < titikPengukuran.length; i++) {
+        total += titikPengukuran[i - 1].distanceTo(titikPengukuran[i]);
+    }
+
+    return total;
+}
+
+function perbaruiTampilanPengukuran() {
+    const total = hitungTotalJarak();
+
+    document.getElementById('measurement-distance').textContent =
+        formatJarak(total);
+
+    const jumlahTitik = titikPengukuran.length;
+    const jumlahSegmen = Math.max(0, jumlahTitik - 1);
+
+    document.getElementById('measurement-status').textContent =
+        'Jumlah titik: ' + jumlahTitik +
+        ' | Jumlah segmen: ' + jumlahSegmen +
+        (pengukuranAktif
+            ? ' | Klik peta untuk menambahkan titik.'
+            : ' | Pengukuran dihentikan.');
+}
+
+function catatTitikPengukuran(event) {
+    if (!pengukuranAktif) return;
+
+    titikPengukuran.push(event.latlng);
+
+    if (!garisPengukuran) {
+        garisPengukuran = L.polyline(titikPengukuran, {
+            pane: 'measurementPane',
+            color: '#7c3aed',
+            weight: 4,
+            opacity: 0.9,
+            dashArray: '8, 6'
+        }).addTo(map);
+    } else {
+        garisPengukuran.setLatLngs(titikPengukuran);
+    }
+
+    L.circleMarker(event.latlng, {
+        pane: 'measurementPane',
+        radius: 5,
+        color: '#ffffff',
+        weight: 2,
+        fillColor: '#7c3aed',
+        fillOpacity: 1
+    }).addTo(markerPengukuran);
+
+    perbaruiTampilanPengukuran();
+}
+
+function hapusPengukuran() {
+    titikPengukuran = [];
+
+    if (garisPengukuran) {
+        map.removeLayer(garisPengukuran);
+        garisPengukuran = null;
+    }
+
+    markerPengukuran.clearLayers();
+
+    document.getElementById('measurement-distance').textContent = '0 m';
+
+    document.getElementById('measurement-status').textContent =
+        pengukuranAktif
+            ? 'Pengukuran dihapus. Klik peta untuk mulai mengukur kembali.'
+            : 'Tekan Mulai Ukur, kemudian klik beberapa titik pada peta.';
+}
+
+function mulaiPengukuran() {
+    hapusPengukuran();
+    pengukuranAktif = true;
+
+    map.on('click', catatTitikPengukuran);
+
+    const tombol = document.getElementById('measure-toggle');
+    tombol.textContent = 'Selesai Ukur';
+    tombol.classList.add('active');
+
+    document.getElementById('measurement-status').textContent =
+        'Mode pengukuran aktif. Klik beberapa titik pada peta.';
+}
+
+function hentikanPengukuran() {
+    pengukuranAktif = false;
+
+    map.off('click', catatTitikPengukuran);
+
+    const tombol = document.getElementById('measure-toggle');
+    tombol.textContent = 'Mulai Ukur';
+    tombol.classList.remove('active');
+
+    perbaruiTampilanPengukuran();
+}
+
+document.getElementById('measure-toggle')
+    .addEventListener('click', function() {
+        if (pengukuranAktif) {
+            hentikanPengukuran();
+        } else {
+            mulaiPengukuran();
+        }
+    });
+
+document.getElementById('measure-clear')
+    .addEventListener('click', hapusPengukuran);
+
+
+/* ==================================================
+   23. MEMUAT SEMUA DATA
+================================================== */
+
+async function muatSemuaData() {
+    await Promise.all([
+        muatAdministrasi(),
+        muatKepadatan(),
+        muatJaringanJalan(),
+
+        muatLayerBahaya('indeks_banjir.GeoJSON', 'Bahaya Banjir')
+            .then(layer => { layerBanjir = layer; }),
+
+        muatLayerBahaya(
+            'bahaya_gelombangekstrim_abrasi.geojson',
+            'Bahaya Gelombang Ekstrem dan Abrasi'
+        ).then(layer => { layerAbrasi = layer; }),
+
+        muatLayerBahaya(
+            'bahaya_cuacaekstrim.geojson',
+            'Bahaya Cuaca Ekstrem'
+        ).then(layer => { layerCuaca = layer; }),
+
+        muatRumahSakit(),
+        muatPuskesmas(),
+
+        muatServiceArea(
+            'servicearea_puskesmas_1km.geojson',
+            'puskesmas1Pane', '#176B45',
+            'Jangkauan Puskesmas 1 KM', '1 KM'
+        ).then(layer => { layerPuskesmas1km = layer; }),
+
+        muatServiceArea(
+            'servicearea_puskesmas_3km.geojson',
+            'puskesmas3Pane', '#91C9A5',
+            'Jangkauan Puskesmas 3 KM', '3 KM'
+        ).then(layer => { layerPuskesmas3km = layer; }),
+
+        muatServiceArea(
+            'servicearea_rs_3km.geojson',
+            'rs3Pane', '#185A9D',
+            'Jangkauan Rumah Sakit 3 KM', '3 KM'
+        ).then(layer => { layerRS3km = layer; }),
+
+        muatServiceArea(
+            'servicearea_rs_5km.geojson',
+            'rs5Pane', '#91BCE5',
+            'Jangkauan Rumah Sakit 5 KM', '5 KM'
+        ).then(layer => { layerRS5km = layer; })
+    ]);
+
+    siapkanLayerGWR();
+
+    pasangEventCheckbox();
+    perbaruiLegenda();
+    perbaruiTransparansiAdministrasi();
+
+    bangunIndeksPencarian();
+}
+
+
+/* ==================================================
+   24. PENGATURAN URUTAN LAYER
+================================================== */
+
+map.on('overlayadd', function() {
+    if (layerAdministrasiGaris && map.hasLayer(layerAdministrasiGaris)) {
+        layerAdministrasiGaris.bringToFront();
+    }
+});
+
+
+/* ==================================================
+   25. ACCORDION PANEL
+================================================== */
+
+document.querySelectorAll('.group-heading').forEach(function(button) {
+    button.addEventListener('click', function() {
+        const group = button.closest('.layer-group');
+        group.classList.toggle('collapsed');
+
+        const terbuka = !group.classList.contains('collapsed');
+        button.setAttribute('aria-expanded', terbuka);
+    });
+});
+
+
+/* ==================================================
+   26. PANEL BISA DIGESER
+================================================== */
+
+(function() {
+    const sidebar = document.getElementById('map-sidebar');
+
+    let sedangDigeser = false;
+    let pointerAwalX = 0;
+    let pointerAwalY = 0;
+    let posisiX = 0;
+    let posisiY = 0;
+    let posisiAwalX = 0;
+    let posisiAwalY = 0;
+
+    sidebar.querySelectorAll('.panel-heading').forEach(function(header) {
+        header.addEventListener('pointerdown', function(event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+            sedangDigeser = true;
+            pointerAwalX = event.clientX;
+            pointerAwalY = event.clientY;
+            posisiAwalX = posisiX;
+            posisiAwalY = posisiY;
+
+            header.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        });
+
+        header.addEventListener('pointermove', function(event) {
+            if (!sedangDigeser) return;
+
+            const lebar = sidebar.offsetWidth;
+            const tinggi = sidebar.offsetHeight;
+
+            const batasXMin = -(window.innerWidth - lebar - 14);
+            const batasXMax = 0;
+            const batasYMin = -130;
+            const batasYMax = window.innerHeight - 130 - tinggi;
+
+            let x = posisiAwalX + (event.clientX - pointerAwalX);
+            let y = posisiAwalY + (event.clientY - pointerAwalY);
+
+            x = Math.max(batasXMin, Math.min(batasXMax, x));
+            y = Math.max(batasYMin, Math.min(batasYMax, y));
+
+            posisiX = x;
+            posisiY = y;
+
+            sidebar.style.transform = `translate3d(${posisiX}px, ${posisiY}px, 0)`;
+        });
+
+        function akhiriGeser() {
+            sedangDigeser = false;
+        }
+
+        header.addEventListener('pointerup', akhiriGeser);
+        header.addEventListener('pointercancel', akhiriGeser);
+    });
+
+    window.addEventListener('resize', function() {
+        const lebar = sidebar.offsetWidth;
+        const tinggi = sidebar.offsetHeight;
+
+        const batasXMin = -(window.innerWidth - lebar - 14);
+        const batasXMax = 0;
+        const batasYMin = -130;
+        const batasYMax = window.innerHeight - 130 - tinggi;
+
+        posisiX = Math.max(batasXMin, Math.min(batasXMax, posisiX));
+        posisiY = Math.max(batasYMin, Math.min(batasYMax, posisiY));
+
+        sidebar.style.transform = `translate3d(${posisiX}px, ${posisiY}px, 0)`;
+    });
+})();
+
+
+/* ==================================================
+   27. NAVBAR SEARCH, PENGGARIS, DAN PANEL INFORMASI
+================================================== */
+
+function bukaPanelNavbar(idPanel, idFokus = null) {
+    const panel = document.getElementById(idPanel);
+    const sidebar = document.getElementById('map-sidebar');
+
+    if (!panel || !sidebar) return;
+
+    // Buka accordion jika panel masih tertutup.
+    if (panel.classList.contains('layer-group')) {
+        panel.classList.remove('collapsed');
+
+        const tombolAccordion = panel.querySelector('.group-heading');
+
+        if (tombolAccordion) {
+            tombolAccordion.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    // Hitung posisi panel di dalam sidebar.
+    const posisiPanel =
+        panel.getBoundingClientRect().top -
+        sidebar.getBoundingClientRect().top +
+        sidebar.scrollTop;
+
+    // Gulir sidebar menuju panel yang dipilih.
+    const posisiScroll =
+        posisiPanel -
+        (sidebar.clientHeight / 2) +
+        (panel.offsetHeight / 2);
+
+    sidebar.scrollTo({
+        top: Math.max(0, posisiScroll),
+        behavior: 'smooth'
+    });
+
+    // Arahkan fokus ke input atau tombol jika tersedia.
+    if (idFokus) {
+        setTimeout(function() {
+            const elemenFokus = document.getElementById(idFokus);
+
+            if (elemenFokus) {
+                elemenFokus.focus({ preventScroll: true });
+            }
+        }, 450);
+    }
+}
+
+
+// NAVBAR SEARCH
+document.getElementById('navbar-search').addEventListener('click', function() {
+    bukaPanelNavbar('search-tool', 'map-search');
+});
+
+
+// NAVBAR PENGGARIS
+document.getElementById('navbar-measure').addEventListener('click', function() {
+    bukaPanelNavbar('measurement-tool', 'measure-toggle');
+});
+
+
+// NAVBAR INFORMASI WILAYAH
+document.getElementById('navbar-wilayah').addEventListener('click', function() {
+    bukaPanelNavbar('panel-wilayah');
+});
+
+
+// NAVBAR BAHAYA BENCANA
+document.getElementById('navbar-bencana').addEventListener('click', function() {
+    bukaPanelNavbar('panel-bencana');
+});
+
+
+// NAVBAR FASILITAS KESEHATAN
+document.getElementById('navbar-kesehatan').addEventListener('click', function() {
+    bukaPanelNavbar('panel-kesehatan');
+});
+
+
+// NAVBAR KETERJANGKAUAN
+document.getElementById('navbar-keterjangkauan').addEventListener('click', function() {
+    bukaPanelNavbar('panel-keterjangkauan');
+});
+
+
+// NAVBAR GWR
+document.getElementById('navbar-gwr').addEventListener('click', function() {
+    bukaPanelNavbar('panel-gwr');
+});
+
+
+/* ==================================================
+   28. INISIALISASI ICON
+================================================== */
+
+if (window.lucide) {
+    lucide.createIcons();
+}
+
+
+/* ==================================================
+   29. JALANKAN WEBGIS
+================================================== */
+
+muatSemuaData();
+
+</script>
+
+</body>
+</html>
